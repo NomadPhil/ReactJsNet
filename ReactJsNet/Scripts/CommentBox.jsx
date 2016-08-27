@@ -160,12 +160,7 @@
     });
 
     var Comment = React.createClass({
-        mixins: [FluxMixin, StoreWatchMixin("CommentStore")],
-
-        getStateFromFlux: function () {
-            var flux = this.getFlux();
-            return flux.store("CommentStore").getState();
-        },
+        mixins: [FluxMixin],
 
         handleCommentDelete: function (e) {
             e.preventDefault();
