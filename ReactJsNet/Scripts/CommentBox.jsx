@@ -1,63 +1,169 @@
 ﻿(function (Fluxxor, React, ReactDOM) {
 
-    var constants = {
-        ADD_COMMENT: "ADD_COMMENT",
-        DELETE_COMMENT: "DELETE_COMMENT"
+    var commentUrl = 'api/comment';
+
+    var CommentClient = {
+        load: function (success, failure) {
+            $.ajax({
+                method: 'GET',
+                url: commentUrl,
+                cache: false
+            }).done(function (data) {
+                success(data);
+            }).fail(function () {
+                failure("Failed to get comments");
+            });
+        },
+
+        submit: function (comment, success, failure) {
+
+            $.ajax({
+                method: 'POST',
+                url: commentUrl,
+                cache: false,
+                data: JSON.stringify(comment),
+                contentType: "application/json"
+            }).done(function (data) {
+                success(data);
+            }).fail(function () {
+                failure("Failed to add comment");
+            });
+        },
+        delete: function (id, success, failure) {
+
+            $.ajax({
+                method: 'DELETE',
+                url: commentUrl + '/' + id,
+                cache: false
+            }).done(function () {
+                success(id);
+            }).fail(function () {
+                failure("Failed to add comment");
+            });
+        }
     };
+
+    var constants = {
+        LOAD_COMMENTS: "LOAD_COMMENTS",
+        LOAD_COMMENTS_SUCCESS: "LOAD_COMMENTS_SUCCESS",
+        LOAD_COMMENTS_FAIL: "LOAD_COMMENTS_FAIL",
+        ADD_COMMENT: "ADD_COMMENT",
+        ADD_COMMENT_SUCCESS: "ADD_COMMENT_SUCCESS",
+        ADD_COMMENT_FAIL: "ADD_COMMENT_FAIL",
+        DELETE_COMMENT: "DELETE_COMMENT",
+        DELETE_COMMENT_SUCCESS: "DELETE_COMMENT_SUCCESS",
+        DELETE_COMMENT_FAIL: "DELETE_COMMENT_FAIL"
+    };
+
+    var CHANGE_EVENT = 'change';
 
     // The Flux stores
     var CommentStore = Fluxxor.createStore({
         initialize: function () {
-            this.commentId = 0;
 
-            var id1 = this._nextCommentId(),
-                id2 = this._nextCommentId();
-
-            this.comments = {},
-            this.comments[id1] = { id: id1, author: "Pete Hunt", text: "This is one comment" },
-            this.comments[id2] = { id: id2, author: "Jordan Walke", text: "This is *another* comment" };
+            this.loading = false;
+            this.error = null;
+            this.comments = {};
 
             this.bindActions(
+              constants.LOAD_COMMENTS, this.onLoadComment,
+              constants.LOAD_COMMENTS_SUCCESS, this.onLoadCommentSuccess,
+              constants.LOAD_COMMENTS_FAIL, this.onLoadCommentFail,
+
               constants.ADD_COMMENT, this.onAddComment,
-              constants.DELETE_COMMENT, this.onDeleteComment
+              constants.ADD_COMMENT_SUCCESS, this.onAddCommentSuccess,
+              constants.ADD_COMMENT_FAIL, this.onAddCommentFail,
+
+              constants.DELETE_COMMENT, this.onDeleteComment,
+              constants.DELETE_COMMENT_SUCCESS, this.onDeleteCommentSuccess,
+              constants.DELETE_COMMENT_FAIL, this.onDeleteCommentFail
             );
         },
 
-        onAddComment: function (payload) {
-            var id = this._nextCommentId();
-            var comment = {
-                id: id,
-                author: payload.author,
-                text: payload.text
-            };
-            this.comments[id] = comment;
-            this.emit("change");
+        onLoadComment: function () {
+            this.loading = true;
+            this.emit(CHANGE_EVENT);
         },
 
-        onDeleteComment: function (payload) {
+        onLoadCommentSuccess: function (payload) {
+            this.comments = payload.comments;
+            this.emit(CHANGE_EVENT);
+        },
+
+        onLoadCommentFail: function (payload) {
+            this.loading = false;
+            this.error = payload.error;
+            this.emit(CHANGE_EVENT);
+        },
+
+        onAddComment: function () {            
+            this.emit(CHANGE_EVENT);
+        },
+
+        onAddCommentSuccess: function (payload) {
+            var comment = payload.comment;
+            this.comments[comment.id] = comment;
+            this.emit(CHANGE_EVENT);
+        },
+
+        onAddCommentFail: function (payload) {
+            this.error = payload.error;
+            this.emit(CHANGE_EVENT);
+        },
+
+        onDeleteComment: function () {
+            this.emit(CHANGE_EVENT);
+        },
+
+        onDeleteCommentSuccess: function (payload) {
             var id = payload.id;
             delete this.comments[id];
-            this.emit("change");
+            this.emit(CHANGE_EVENT);
+        },
+
+        onDeleteCommentFail: function (payload) {
+            this.error = payload.error;
+            this.emit(CHANGE_EVENT);
         },
 
         getState: function () {
             return {
                 comments: this.comments
             };
-        },
-
-        _nextCommentId: function () {
-            return ++this.commentId;
         }
     });
 
     // Flux itself
     var actions = {
+        loadComments: function () {
+            this.dispatch(constants.LOAD_COMMENTS);
+
+            CommentClient.load(function (comments) {
+                this.dispatch(constants.LOAD_COMMENTS_SUCCESS, { comments: comments });
+            }.bind(this), function (error) {
+                this.dispatch(constants.LOAD_COMMENTS_FAIL, { error: error });
+            }.bind(this));
+        },
         addComment: function (comment) {
-            this.dispatch(constants.ADD_COMMENT, { author: comment.author, text: comment.text });
+            this.dispatch(constants.ADD_COMMENT);
+
+            CommentClient.submit(comment,
+                function (comment) {
+                    this.dispatch(constants.ADD_COMMENT_SUCCESS, { comment: comment });
+                }.bind(this),
+                function (error) {
+                    this.dispatch(constants.ADD_COMMENT_FAIL, { error: error });
+                }.bind(this));
         },
         deleteComment: function (id) {
-            this.dispatch(constants.DELETE_COMMENT, { id: id });
+            this.dispatch(constants.DELETE_COMMENT);
+
+            CommentClient.delete(id,
+                function (id) {
+                    this.dispatch(constants.DELETE_COMMENT_SUCCESS, { id: id });
+                }.bind(this), function (error) {
+                    this.dispatch(constants.DELETE_COMMENT_FAIL, { error: error });
+                }.bind(this));
         }
     };
 
@@ -89,12 +195,17 @@
         handleCommentSubmit: function (comment) {
             this.getFlux().actions.addComment(comment);
         },
+        componentDidMount: function () {
+            this.getFlux().actions.loadComments();
+        },
         render: function () {
 
             var comments = this.state.comments;
 
             return (
               <div className="commentBox">
+                  {this.state.error ? <p>Error loading data</p> : null}
+                  {this.state.loading ? <p>Loading...</p> : null}
                   <h2>Comments</h2>
                     <CommentList data={comments} />
                     <CommentForm onCommentSubmit={this.handleCommentSubmit} />
