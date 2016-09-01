@@ -1,4 +1,4 @@
-﻿(function (Fluxxor, React, ReactDOM) {
+﻿(function (Fluxxor, React, ReactDOM, $) {
 
     var commentUrl = 'api/comment';
 
@@ -86,7 +86,11 @@
         },
 
         onLoadCommentSuccess: function (payload) {
-            this.comments = payload.comments;
+
+            for (i = 0; i < payload.comments.length; i++) {
+                this.comments[payload.comments[i].id] = payload.comments[i];
+            }
+
             this.emit(CHANGE_EVENT);
         },
 
@@ -300,4 +304,4 @@
       document.getElementById('content')
     );
 
-})(Fluxxor, React, ReactDOM);
+})(Fluxxor, React, ReactDOM, jQuery);
