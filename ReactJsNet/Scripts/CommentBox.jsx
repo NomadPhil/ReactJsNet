@@ -91,6 +91,9 @@
                 this.comments[payload.comments[i].id] = payload.comments[i];
             }
 
+            this.loading = false;
+            this.error = null;
+
             this.emit(CHANGE_EVENT);
         },
 
@@ -132,6 +135,8 @@
 
         getState: function () {
             return {
+                loading: this.loading,
+                error: this.error,
                 comments: this.comments
             };
         }
