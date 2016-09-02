@@ -214,10 +214,12 @@
             return (
               <div className="commentBox">
                   {this.state.error ? <p>Error loading data</p> : null}
-                  {this.state.loading ? <p>Loading...</p> : null}
-                  <h2>Comments</h2>
-                    <CommentList data={comments} />
-                    <CommentForm onCommentSubmit={this.handleCommentSubmit} />
+                  {this.state.loading ? <p>Loading...</p> :                  
+                  <div >
+                      <h2>Comments</h2>
+                        <CommentList data={comments} />
+                        <CommentForm onCommentSubmit={this.handleCommentSubmit} />
+                  </div>}
               </div>
             );
         }
