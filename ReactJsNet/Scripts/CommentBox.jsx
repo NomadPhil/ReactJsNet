@@ -87,7 +87,7 @@
 
         onLoadCommentSuccess: function (payload) {
 
-            for (i = 0; i < payload.comments.length; i++) {
+            for (var i = 0; i < payload.comments.length; i++) {
                 this.comments[payload.comments[i].id] = payload.comments[i];
             }
 
